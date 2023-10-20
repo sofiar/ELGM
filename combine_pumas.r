@@ -33,11 +33,11 @@ return(out)
 ############################################################################
 ############################# Census data ##################################
 ############################################################################
-year=2012
+year=2010
 Race='White'
 race.mortality=c('nh-withe')
-#education='Less-E'
-education='University'
+education='Less-E'
+#education='University'
 
 source('./select_variables.R')
 
@@ -100,6 +100,8 @@ st_tot <- st_pums0 %>%
   summarize(
     total_pop = sum(PWGTP))
 
+
+
 st_tot$PUMA <- sapply(st_tot$PUMA, complete_with_zeros,6)
 st_tot=st_tot%>%mutate(SPUMA=paste(ST,PUMA,sep=''))
 st_tot=st_tot%>% filter(RAC1P==Race) # filter race we want
@@ -110,18 +112,47 @@ r2=st_tot%>%group_by(SPUMA)%>%summarize(tot_pop=sum(total_pop))
 ratio_df <- inner_join(r1, r2, by = "SPUMA") %>%
   mutate(ratio = tot_pe / tot_pop)%>%dplyr::filter(EDC==education) # filter education level we want
 
+
 # census tracts into PUMAs
-pumas.ct = read.csv("geocorr2014.csv")
+if (year==2010)
+{
+pumas.ct = read.csv("geocorr2014_2010.csv")
+names(pumas.ct)=c('state','puma12','county','tract','stab','cntyname',
+'PUMAname','pop10','afact')
+}
+else {
+pumas.ct = read.csv("geocorr2014.csv") # Do I need to chag this for 2010? 
+}
+
 pumas.ct = pumas.ct%>%dplyr::filter(stab%in%Names.states) # filter only states we want
 pumas.ct$tract = sapply(pumas.ct$tract, complete_geoid)
 pumas.ct$puma12 = sapply(pumas.ct$puma12, complete_with_zeros,n=6)
 pumas.ct$county=sapply(pumas.ct$county,complete_with_zeros,n=5)
 pumas.ct=pumas.ct%>%mutate(GEOID=paste(county,tract,sep=''))
 pumas.ct=pumas.ct%>%mutate(SPUMA=paste(state,puma12,sep=''))
+
+
+#### CHECK HERE THIS:
+#st1=st_tot%>% filter(ST==48)
+#sp1=pumas.ct%>% filter(state==48)
+#range(st1$SPUMA)
+#range(sp1$SPUMA)
+#length(unique(st1$SPUMA))
+#length(unique(sp1$SPUMA))
+#unique(as.character(df[substr(df$GEOID, 1, 2)=='01',]$GEOID))
+#sum(is.na(match(st1$SPUMA,sp1$SPUMA)))
+
 pumas.ct=pumas.ct%>%dplyr::select(SPUMA,GEOID)
 
 #range(pumas.ct$GEOID)
 #range(as.character(df$GEOID))
+#length(unique(pumas.ct$GEOID))
+#length(unique(df$GEOID))
+
+
+#length(unique(pumas.ct$SPUMA))
+#length(unique(ratio_df$SPUMA))
+#length(unique(st_tot$SPUMA))
 
 ###########################################
 ##### Missing PUMAs for census tracts #####
@@ -231,11 +262,15 @@ reduce.df=states_pt %>% filter(variable==names(variables[1]))
 reduce.df=reduce.df[!duplicated(reduce.df$GEOID),] # commentme
 geometry=as(reduce.df$geometry %>% st_cast("MULTIPOLYGON",group_or_split=FALSE), 'Spatial')
 
+length(unique(df_e$GEOID))
+length(unique(states_pt$GEOID))
+
 quienes=match(reduce.df$NAME,d$name)
 d=d[quienes,]
 rated_population=SpatialPolygonsDataFrame(Sr=geometry, data=d,match.ID=FALSE)
 
 #spplot(rated_population,zcol='pop.r')
+
 # get raster
 population_raster = geostatsp::spdfToBrick(vect(rated_population), 
 geostatsp::squareRaster(vect(rated_population), 500)
@@ -248,7 +283,11 @@ sum(values(population_raster), na.rm=TRUE)*prod(res(population_raster))
 
 ## multiplys by resolution 
 values(population_raster)=values(population_raster)*prod(res(population_raster))
-            
+
+#plot(raster(population_raster))
+# spplot(rated_population,zcol='pop.r')
+
+
 # Create deaths counts by county
 U.states=dyear %>% filter(stateoc%in%Names.states)
 U.states$countyoc=str_pad(U.states$countyoc, 3, pad = "0")
