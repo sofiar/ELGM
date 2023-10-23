@@ -15,7 +15,13 @@ sex=c('Male','Female')
 variables=c()
 names.v=c()
 
+
+if (year==2005){
+all_vars_acs5 <-load_variables(year = year, dataset = "acs1")
+}else{
 all_vars_acs5 <-load_variables(year = year, dataset = "acs5")
+}
+
 all_vars_acs5 = all_vars_acs5[-dim(all_vars_acs5)[1],]
 
 
