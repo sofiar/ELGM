@@ -17,7 +17,7 @@ names.v=c()
 
 
 
-all_vars_acs5 <-load_variables(year = year, dataset = "acs5")
+all_vars_acs5 <-load_variables(year = year.acs, dataset = "acs5")
 all_vars_acs5 = all_vars_acs5[-dim(all_vars_acs5)[1],]
 
 
