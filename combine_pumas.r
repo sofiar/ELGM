@@ -33,7 +33,7 @@ return(out)
 ############################################################################
 ############################# Census data ##################################
 ############################################################################
-year=2005
+year=2008
 if (year>=2010 & year<=2015)
 {year.acs=2015
 }else if (year>=2005 & year<=2009)
@@ -65,7 +65,6 @@ options(tigris_use_cache = FALSE)
 states_pt <- get_acs(geography = "tract", year=year.acs,survey='acs5',
                      geometry = TRUE, state=Names.states,
                      variables=variables)
-states_pt1=states_pt
 states_pt=states_pt[!st_is_empty(states_pt$geometry),]
 df=data.frame(states_pt)
 df$GEOID=as.factor(df$GEOID)
@@ -88,9 +87,10 @@ df$age=as.factor(age)
 ############################################################################
 ############################## Combine with PUMAs data #####################
 ############################################################################
-
 # get PUMAs data
-st_pums0 <- get_pums(variables = c("PUMA", "SEX","AGEP", "SCHL","RAC1P"), state = Names.states, survey = "acs1", year =year)
+st_pums00 <- get_pums(variables = c("PUMA", "SEX","AGEP", "SCHL","RAC1P"), state = Names.states, survey = "acs1", year =year.acs)
+st_pums0=st_pums00
+unique(st_pums0$SCHL)
 st_pums0$AGEP=as.numeric(st_pums0$AGEP)
 st_pums0$SCHL=as.numeric(st_pums0$SCHL)
 st_pums0$EDC=as.numeric(st_pums0$SCHL)
@@ -124,11 +124,11 @@ ratio_df <- inner_join(r1, r2, by = "SPUMA") %>%
   mutate(ratio = tot_pe / tot_pop)%>%dplyr::filter(EDC==education) # filter education level we want
 
 # census tracts into PUMAs
-if (year<2010)
+if (year.acs<2010)
 {
 pumas.ct = read.csv("geocorr2000.csv")
 names(pumas.ct)=c('state','puma12','county','tract','stab','cntyname','pop2k','afact')
-}else if (year==2010) {
+}else if (year.acs==2010) {
 pumas.ct = read.csv("geocorr2014_2010.csv")
 names(pumas.ct)=c('state','puma12','county','tract','stab','cntyname',
 'PUMAname','pop10','afact')
@@ -181,6 +181,7 @@ length(pumas.ct$GEOID[is.na(M1)])
 
 MM=match(df$GEOID,pumas.ct$GEOID)
 huerfanos=unique(df[which(is.na(MM)),]$GEOID)
+length(huerfanos)
 qq=match(huerfanos,states_pt$GEOID)
 tracts.huerfanos=states_pt[qq,]
 states_huerfanos <- substr(tracts.huerfanos$GEOID, 1, 2)
@@ -188,13 +189,12 @@ missing_ct_pumas=matrix(NA,ncol=3,nrow=0)
 
 # Group the elements based on the state
 # geometry pumas for missing PUMAS
-if (year<2012 & year>=2010)
-{
-pumas_geom=shapefile('ipums_puma_2010.shp')
-}else if(year<=2005 & year>2010){
-pumas_geom=shapefile('ipums_puma_2000_tl10.shp')
-}
-
+#if (year<2012 & year>=2010)
+#{
+#pumas_geom=shapefile('./ipums_puma_2010/ipums_puma_2010.shp')
+#}else if(year<=2005 & year<2010){
+#pumas_geom=shapefile('./ipums_puma_2000_tl10/ipums_puma_2000_tl10.shp')
+#}
 
 grouped_list <- split(tracts.huerfanos$GEOID, states_huerfanos)
 cat('computing missing census tracts...')
@@ -202,14 +202,13 @@ for(j in 1:length(grouped_list)) # looping over states
 {
  state_code=as.numeric(substr( grouped_list[[j]][1], 1, 2))
 # get pumas  data for that state
-if (year<=2005 & year>=2011)
-states.p=pumas[pumas$STATEFIP==as.character(state_code),]
-}else(year){
+if (year>=2005 & year<=2011){
+states.p=pumas(state=state_code,year=2012)
+}else{
 states.p=pumas(state=state_code,year=year)
 }
-
-
 # get census tracts in that state
+
 ct_huerfanos=grouped_list[[j]]
       for (ii in 1:length(ct_huerfanos)) # looping over census tracts
       {
@@ -219,7 +218,7 @@ ct_huerfanos=grouped_list[[j]]
       missing_ct_pumas=rbind(missing_ct_pumas,
       cbind(states.p[closest_polygon_index,]$PUMACE10,ct_huerfanos[ii],state_code))
       }
-      #print(j)
+      print(j)
 }
 
 # complete missing census tracts
@@ -389,10 +388,12 @@ states.counts=U.states %>% group_by(CountyF) %>% summarise(nCounts=n())
 states.counts=states.counts[!duplicated(states.counts$CountyF),]
 
 ### get county geometry
+# to avoid empty geometry 2009
+if (year.acs==2009)
+{year.acs=year.acs+1}
 states_p <- get_acs(geography = "county", year=year.acs,survey='acs5',
                     state = Names.states,geometry = TRUE,
                     variables=c(population = "B01001_001"))
-#states_p=states_p[!st_is_empty(states_p$geometry),]
 
 d=states_p$geometry %>% st_cast("MULTIPOLYGON",group_or_split=FALSE)
 county_geometry=as(d, 'Spatial')
@@ -470,6 +471,7 @@ file_name=paste(paste(Race,'rated_population_sh',year,education,sep='_'),'.shp',
 url=paste('./tidy_data/',file_name,sep='')
 raster::shapefile(rated_population, url,overwrite=TRUE)
 
+rm(list=setdiff(ls(), c("st_pums00","states_pt")))
 #file_name=paste(paste('county_geometry',year,sep='_'),'.shp',sep='')
 #url=paste('./tidy_data/',file_name,sep='')
 #raster::shapefile(county_geometry, url,overwrite=TRUE)
