@@ -1,7 +1,7 @@
 library(data.table)
 library(tidyverse)
 library(haven)
-year=2015
+year=2008
 
 #### Mortality data 
 filename=paste('/u/ruizsuar/ELGM/data/US_mort_05t015/us_county',as.character(year),'.dta',sep='')
@@ -39,6 +39,12 @@ dyear$educ2003=dyear$educ
 dyear$educ1989=dyear$educ89
 dyear$educ=NULL
 }
+
+if(year==2008) # change wrong values
+{
+dyear[dyear$stateoc=='GA',]$educ2003=9
+}
+
 
 educ[dyear$educ2003%in%c(1,2)]='Less-E'
 educ[dyear$educ2003==3]='HS'
