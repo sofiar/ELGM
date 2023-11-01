@@ -1,7 +1,7 @@
 library(data.table)
 library(tidyverse)
 library(haven)
-year=2012
+year=2015
 
 #### Mortality data 
 filename=paste('/u/ruizsuar/ELGM/data/US_mort_05t015/us_county',as.character(year),'.dta',sep='')
@@ -14,9 +14,14 @@ wh1=which(str_detect(data_year$ucod,'C34')==1)
 wh2=which(str_detect(data_year$ucod,'J44')==1)
 data_year = data_year[c(wh1,wh2),]
 
-
+if (year==2005)
+{
 dyear = data_year %>% dplyr::select(countyoc,stateoc,monthdth,sex,year,mandeath,ucod,race,hispanic, hspanicr,
-                                    sex,ager27,hspanicr,educ2003,educ1989,educflag)
+                                sex,ager27,hspanicr,educ89,educflag,educ)
+}else{
+dyear = data_year %>% dplyr::select(countyoc,stateoc,monthdth,sex,year,mandeath,ucod,race,hispanic, hspanicr,
+                                 sex,ager27,hspanicr,educ2003,educ1989,educflag)
+}
 rm(data_year)
 
 # Create race factor: hispanic, non-hispanic black,non-hispanic withe and non-hispanic other.  
@@ -28,12 +33,21 @@ race[dyear$hispanic<200 & dyear$hspanicr ==8]='nh-other'
 dyear$race=race
 
 educ=rep(NA,length(dyear$sex))
+if(year==2005)
+{
+dyear$educ2003=dyear$educ
+dyear$educ1989=dyear$educ89
+dyear$educ=NULL
+}
+
 educ[dyear$educ2003%in%c(1,2)]='Less-E'
 educ[dyear$educ2003==3]='HS'
 educ[dyear$educ2003%in%c(4,5)]='Collage'
-educ[dyear$educ2003%in%c(6,7,8,9)]='University'
-educ[is.na(dyear$educ2003)]='NA'
+educ[dyear$educ2003%in%c(6,7,8)]='University'
+#educ[is.na(dyear$educ2003)]=NA
+
 dyear$educ=educ
+
 
 dyear=dyear %>%
   mutate(
@@ -46,6 +60,8 @@ dyear=dyear %>%
     )
   )
 
+#ga=dyear%>%filter(stateoc=='GA')
+#View(ga)
 # create age levels 
 #age.f=rep(NA,length(dyear$sex))
 #dyear$age = cut(dyear$ager27,breaks = c(1,seq(6, 21),27))
@@ -115,9 +131,8 @@ levels(dyear$age)=as.factor(paste('a',1:13,sep=''))
 # rm(Fs,Ms)
 
 #dyear = dyear %>% dplyr::select(countyoc,stateoc,sex,year,race,educ, sex,age.f)
-
 dyear = dyear %>% dplyr::select(countyoc,stateoc,sex,year,race,educ, sex,age)
 
-filecsv=paste('./tidy_data/tidy_mortalityData_',as.character(year),'.csv',sep='')
+filecsv=paste('/u/ruizsuar/ELGM/tidy_data/tidy_mortalityData_',as.character(year),'.csv',sep='')
 # write file
 fwrite(dyear,filecsv)
